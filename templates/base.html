@@ -1,0 +1,635 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Log Analysis</title>
+    
+    <!-- Preload critical resources -->
+    <link rel="preconnect" href="https://cdn.jsdelivr.net">
+    <link rel="preconnect" href="https://cdnjs.cloudflare.com/ajax/libs">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Chart.js with preload -->
+    <link rel="preload" href="https://cdn.jsdelivr.net/npm/chart.js" as="script">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/style.css">
+    
+    <style>
+        :root {
+            --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --secondary-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --success-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            
+            /* Light Mode Variables */
+            [data-theme="light"] {
+                --bg-primary: #ffffff;
+                --bg-secondary: #f8f9fa;
+                --bg-card: #ffffff;
+                --text-primary: #212529;
+                --text-secondary: #6c757d;
+                --border-color: #dee2e6;
+                --shadow-color: rgba(0, 0, 0, 0.1);
+                --navbar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                --footer-bg: #f8f9fa;
+                --footer-text: #212529;
+                --card-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            }
+            
+            /* Dark Mode Variables */
+            [data-theme="dark"] {
+                --bg-primary: #0f0c29;
+                --bg-secondary: #1a1c23;
+                --bg-card: #2a2d37;
+                --text-primary: #f8f9fa;
+                --text-secondary: #adb5bd;
+                --border-color: #3a3e4a;
+                --shadow-color: rgba(0, 0, 0, 0.3);
+                --navbar-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                --footer-bg: rgba(0, 0, 0, 0.3);
+                --footer-text: #f8f9fa;
+                --card-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            }
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            transition: all 0.3s ease;
+        }
+        
+        .navbar {
+            background: var(--navbar-bg) !important;
+            box-shadow: 0 4px 20px var(--shadow-color);
+            padding: 0.8rem 1rem;
+        }
+        
+        .navbar-brand {
+            font-weight: 700;
+            font-size: 1.5rem;
+            color: white !important;
+        }
+        
+        .nav-link {
+            font-weight: 500;
+            padding: 0.5rem 1rem !important;
+            border-radius: 8px;
+            transition: all 0.3s ease;
+            margin: 0 0.2rem;
+            color: rgba(255, 255, 255, 0.9) !important;
+        }
+        
+        .nav-link:hover {
+            background: rgba(255, 255, 255, 0.15);
+            transform: translateY(-1px);
+            color: white !important;
+        }
+        
+        .nav-link.active {
+            background: rgba(255, 255, 255, 0.2);
+            font-weight: 600;
+            color: white !important;
+        }
+        
+        .main-container {
+            min-height: calc(100vh - 120px);
+            padding: 2rem 0;
+            background: var(--bg-primary);
+            transition: background 0.3s ease;
+        }
+        
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            box-shadow: var(--card-shadow);
+            transition: all 0.3s ease;
+            color: var(--text-primary);
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px var(--shadow-color);
+        }
+        
+        .card-header {
+            background: rgba(0, 0, 0, 0.05);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1.5rem;
+        }
+        
+        .card-title {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        
+        footer {
+            background: var(--footer-bg) !important;
+            color: var(--footer-text) !important;
+            border-top: 1px solid var(--border-color);
+            transition: all 0.3s ease;
+        }
+        
+        /* Theme Toggle Switch */
+        .theme-switch {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+        }
+        
+        .theme-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            transition: .4s;
+            border-radius: 34px;
+        }
+        
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 3px;
+            background: var(--primary-gradient);
+            transition: .4s;
+            border-radius: 50%;
+        }
+        
+        input:checked + .slider {
+            background: var(--bg-card);
+        }
+        
+        input:checked + .slider:before {
+            transform: translateX(30px);
+        }
+        
+        .slider .theme-icon {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            transition: opacity 0.3s ease;
+        }
+        
+        .slider .sun {
+            left: 8px;
+            opacity: 0;
+            color: #ffd43b;
+        }
+        
+        .slider .moon {
+            right: 8px;
+            opacity: 1;
+            color: #f8f9fa;
+        }
+        
+        input:checked + .slider .sun {
+            opacity: 1;
+        }
+        
+        input:checked + .slider .moon {
+            opacity: 0;
+        }
+        
+        /* Loading animation for chart */
+        .chart-loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 300px;
+        }
+        
+        .chart-loading-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid rgba(0, 0, 0, 0.1);
+            border-radius: 50%;
+            border-top-color: #667eea;
+            animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* Modern scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: var(--primary-gradient);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+        }
+        
+        /* Button styles */
+        .btn-primary {
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+        
+        /* Alert styles */
+        .alert {
+            border: 1px solid var(--border-color);
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        /* Form controls */
+        .form-control {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .form-control:focus {
+            background: var(--bg-card);
+            border-color: #667eea;
+            color: var(--text-primary);
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        
+        /* Table styles */
+        .table {
+            color: var(--text-primary);
+            background: var(--bg-card);
+        }
+        
+        .table th {
+            border-color: var(--border-color);
+            background: rgba(0, 0, 0, 0.05);
+        }
+        
+        .table td {
+            border-color: var(--border-color);
+        }
+        
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .navbar-brand {
+                font-size: 1.2rem;
+            }
+            
+            .nav-link {
+                padding: 0.5rem !important;
+                margin: 0.1rem;
+            }
+            
+            .main-container {
+                padding: 1rem 0;
+            }
+            
+            .theme-switch {
+                width: 50px;
+                height: 25px;
+            }
+            
+            .slider:before {
+                height: 18px;
+                width: 18px;
+            }
+            
+            input:checked + .slider:before {
+                transform: translateX(25px);
+            }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+    <!-- Navigation -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'logs:dashboard' %}">
+                <i class="fas fa-shield-heart me-2"></i>HealthGuard Analytics
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" 
+                    aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="{% url 'logs:dashboard' %}">
+                            <i class="fas fa-gauge-high me-1"></i>Dashboard
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'upload' in request.path %}active{% endif %}" href="{% url 'logs:upload_logs' %}">
+                            <i class="fas fa-cloud-upload-alt me-1"></i>Upload Logs
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'alerts' in request.path %}active{% endif %}" href="{% url 'logs:view_alerts' %}">
+                            <i class="fas fa-bell me-1"></i>Alerts
+                            <span class="badge bg-danger ms-1" id="alert-count">0</span>
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="navbar-nav align-items-center">
+                    <!-- Theme Toggle Switch -->
+                    <div class="nav-item me-3">
+                        <label class="theme-switch" for="theme-toggle" title="Toggle Dark/Light Mode">
+                            <input type="checkbox" id="theme-toggle">
+                            <span class="slider">
+                                <i class="fas fa-sun sun"></i>
+                                <i class="fas fa-moon moon"></i>
+                            </span>
+                        </label>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main-container">
+        <div class="container-fluid">
+            {% if messages %}
+            <div class="row">
+                <div class="col-12">
+                    {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        <i class="fas fa-{% if message.tags == 'success' %}check-circle{% elif message.tags == 'error' %}exclamation-circle{% else %}info-circle{% endif %} me-2"></i>
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+            
+            {% block content %}
+            {% endblock %}
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="text-center py-4">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-6 text-md-start">
+                    <p class="mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>Healthcare Log Analysis System
+                    </p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <p class="mb-0">
+                        &copy; {% now "Y" %} HealthGuard Analytics. All rights reserved.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Chart.js with fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Custom Scripts -->
+    <script src="/static/js/script.js"></script>
+    
+    <!-- Theme Management -->
+    <script>
+        // Theme management
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize theme from localStorage or prefer-color-scheme
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            
+            if (savedTheme) {
+                document.body.setAttribute('data-theme', savedTheme);
+                document.getElementById('theme-toggle').checked = savedTheme === 'light';
+            } else {
+                const defaultTheme = prefersDark ? 'dark' : 'light';
+                document.body.setAttribute('data-theme', defaultTheme);
+                document.getElementById('theme-toggle').checked = defaultTheme === 'light';
+                localStorage.setItem('theme', defaultTheme);
+            }
+            
+            // Theme toggle functionality
+            const themeToggle = document.getElementById('theme-toggle');
+            themeToggle.addEventListener('change', function() {
+                const newTheme = this.checked ? 'light' : 'dark';
+                document.body.setAttribute('data-theme', newTheme);
+                localStorage.setItem('theme', newTheme);
+                
+                // Dispatch custom event for theme change
+                window.dispatchEvent(new CustomEvent('themeChanged', { detail: newTheme }));
+            });
+            
+            // Listen for system theme changes
+            window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', e => {
+                if (!localStorage.getItem('theme')) {
+                    const newTheme = e.matches ? 'dark' : 'light';
+                    document.body.setAttribute('data-theme', newTheme);
+                    document.getElementById('theme-toggle').checked = newTheme === 'light';
+                }
+            });
+            
+            // Chart.js loading and error handling
+            initializeCharts();
+            updateAlertCount();
+            
+            // Reinitialize charts on theme change
+            window.addEventListener('themeChanged', function(e) {
+                setTimeout(initializeCharts, 100); // Small delay to ensure CSS transitions complete
+            });
+        });
+
+        function initializeCharts() {
+            if (typeof Chart === 'undefined') {
+                handleChartLoadError();
+                return;
+            }
+
+            const chartElements = document.querySelectorAll('canvas[data-chart]');
+            chartElements.forEach(element => {
+                try {
+                    const ctx = element.getContext('2d');
+                    const chartType = element.getAttribute('data-chart-type') || 'doughnut';
+                    const chartData = JSON.parse(element.getAttribute('data-chart-data') || '{}');
+                    
+                    // Update chart colors based on theme
+                    const isDark = document.body.getAttribute('data-theme') === 'dark';
+                    updateChartColors(chartData, isDark);
+                    
+                    new Chart(ctx, {
+                        type: chartType,
+                        data: chartData,
+                        options: getChartOptions(isDark)
+                    });
+                } catch (error) {
+                    console.error('Error initializing chart:', error);
+                    showChartError(element);
+                }
+            });
+        }
+
+        function updateChartColors(chartData, isDark) {
+            const textColor = isDark ? '#f8f9fa' : '#212529';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            
+            if (chartData.datasets) {
+                chartData.datasets.forEach(dataset => {
+                    if (dataset.backgroundColor) {
+                        // Ensure colors have good contrast in both themes
+                        dataset.backgroundColor = dataset.backgroundColor.map(color => 
+                            adjustColorForTheme(color, isDark)
+                        );
+                    }
+                });
+            }
+        }
+
+        function adjustColorForTheme(color, isDark) {
+            // Simple color adjustment for theme compatibility
+            if (isDark) {
+                // Brighten colors slightly for dark theme
+                return color.replace(/rgb\((\d+), (\d+), (\d+)\)/, (match, r, g, b) => {
+                    return `rgb(${Math.min(255, parseInt(r) + 20)}, ${Math.min(255, parseInt(g) + 20)}, ${Math.min(255, parseInt(b) + 20)})`;
+                });
+            }
+            return color;
+        }
+
+        function getChartOptions(isDark) {
+            const textColor = isDark ? '#f8f9fa' : '#212529';
+            const gridColor = isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)';
+            
+            return {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            color: textColor,
+                            font: {
+                                family: 'Inter, sans-serif'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: isDark ? 'rgba(42, 45, 55, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                        titleColor: textColor,
+                        bodyColor: textColor,
+                        borderColor: gridColor,
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    x: {
+                        grid: {
+                            color: gridColor
+                        },
+                        ticks: {
+                            color: textColor
+                        }
+                    },
+                    y: {
+                        grid: {
+                            color: gridColor
+                        },
+                        ticks: {
+                            color: textColor
+                        }
+                    }
+                }
+            };
+        }
+
+        function handleChartLoadError() {
+            console.error('Chart.js failed to load');
+            const chartContainers = document.querySelectorAll('canvas');
+            chartContainers.forEach(container => {
+                showChartError(container);
+            });
+        }
+
+        function showChartError(container) {
+            container.innerHTML = `
+                <div class="chart-loading">
+                    <div class="text-center text-warning">
+                        <i class="fas fa-exclamation-triangle fa-3x mb-2"></i>
+                        <p>Chart library not loaded</p>
+                        <small>Please check your internet connection</small>
+                    </div>
+                </div>
+            `;
+        }
+
+        function updateAlertCount() {
+            // You can implement AJAX call to get real-time alert count
+            fetch('/api/alerts/count/')
+                .then(response => response.json())
+                .then(data => {
+                    const badge = document.getElementById('alert-count');
+                    if (badge && data.count > 0) {
+                        badge.textContent = data.count;
+                        badge.style.display = 'inline-block';
+                    }
+                })
+                .catch(error => {
+                    console.log('Could not fetch alert count');
+                });
+        }
+
+        // Auto-refresh charts every 30 seconds
+        setInterval(() => {
+            if (typeof Chart !== 'undefined') {
+                initializeCharts();
+                updateAlertCount();
+            }
+        }, 30000);
+    </script>
+
+    {% block extra_js %}
+    {% endblock %}
+</body>
+</html>

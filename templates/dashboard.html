@@ -1,0 +1,670 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="dashboard-container">
+    <!-- Header Section -->
+    <div class="dashboard-header">
+        <div class="header-content">
+            <h1 class="display-5 fw-bold text-white">
+                <i class="fas fa-shield-alt me-3"></i>Healthcare Security Dashboard
+            </h1>
+            <p class="text-white-50 mb-0">Real-time log analysis and threat monitoring</p>
+        </div>
+        <div class="header-actions">
+            <a href="{% url 'logs:upload_logs' %}" class="btn btn-light btn-lg">
+		    
+                <i class="fas fa-cloud-upload-alt me-2"></i>Upload Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards Grid -->
+    <div class="row g-4 mt-2">
+        <!-- Total Logs Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card stats-card bg-gradient-primary hover-lift">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-white-50">TOTAL LOGS</h6>
+                            <h2 class="card-text display-4 fw-bold text-info">{{ total_logs }}</h2>
+                            <span class="badge bg-white text-primary">
+                                <i class="fas fa-arrow-trend-up me-1"></i>All time
+                            </span>
+                        </div>
+                        <div class="icon-container">
+                            <i class="fas fa-database text-info"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- High Severity Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card stats-card bg-gradient-warning hover-lift">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-white-50">HIGH SEVERITY</h6>
+                            <h2 class="card-text display-4 fw-bold text-warning">{{ high_severity }}</h2>
+                            <span class="badge bg-white text-warning">
+                                <i class="fas fa-exclamation me-1"></i>Needs attention
+                            </span>
+                        </div>
+                        <div class="icon-container">
+                            <i class="fas fa-exclamation-triangle text-warning"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Critical Alerts Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card stats-card bg-gradient-danger hover-lift">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-white-50">CRITICAL ALERTS</h6>
+                            <h2 class="card-text display-4 fw-bold text-danger">{{ critical_alerts }}</h2>
+                            <span class="badge bg-white text-danger">
+                                <i class="fas fa-bolt me-1"></i>Immediate action
+                            </span>
+                        </div>
+                        <div class="icon-container">
+                            <i class="fas fa-radiation text-danger"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resolved Card -->
+        <div class="col-xl-3 col-md-6">
+            <div class="card stats-card bg-gradient-success hover-lift">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-white-50">RESOLVED</h6>
+                            <h2 class="card-text display-4 fw-bold text-success">{{ recent_alerts|length }}</h2>
+                            <span class="badge bg-white text-success">
+                                <i class="fas fa-check me-1"></i>Completed
+                            </span>
+                        </div>
+                        <div class="icon-container">
+                            <i class="fas fa-check-circle text-success"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts and Alerts Section -->
+    <div class="row g-4 mt-2">
+        <!-- Chart Section -->
+        <div class="col-xl-8">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-transparent border-0 d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2 text-primary"></i>
+                        Log Severity Distribution
+                    </h5>
+                    <div class="chart-controls">
+                        <button class="btn btn-sm btn-outline-primary active" data-chart-type="doughnut">
+                            <i class="fas fa-circle"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-primary" data-chart-type="bar">
+                            <i class="fas fa-chart-bar"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <canvas id="severityChart" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Alerts Section -->
+        <div class="col-xl-4">
+            <div class="card h-100 shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bell me-2 text-warning"></i>
+                        Recent Alerts
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_alerts %}
+                        <div class="alert-list">
+                            {% for alert in recent_alerts %}
+                            <div class="alert-item {% if alert.log_entry.severity == 'critical' %}alert-critical{% elif alert.log_entry.severity == 'high' %}alert-high{% elif alert.log_entry.severity == 'medium' %}alert-medium{% else %}alert-low{% endif %}" 
+                                 data-bs-toggle="tooltip" 
+                                 title="Click to resolve"
+                                 onclick="resolveAlert({{ alert.id }})">
+                                <div class="alert-icon">
+                                    {% if alert.log_entry.severity == 'critical' %}
+                                        <i class="fas fa-radiation"></i>
+                                    {% elif alert.log_entry.severity == 'high' %}
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                    {% elif alert.log_entry.severity == 'medium' %}
+                                        <i class="fas fa-exclamation"></i>
+                                    {% else %}
+                                        <i class="fas fa-info-circle"></i>
+                                    {% endif %}
+                                </div>
+                                <div class="alert-content">
+                                    <h6 class="alert-title">{{ alert.pattern.name }}</h6>
+                                    <p class="alert-desc">{{ alert.description }}</p>
+                                    <small class="alert-time">
+                                        <i class="fas fa-clock me-1"></i>
+                                        {{ alert.created_at|timesince }} ago
+                                    </small>
+                                </div>
+                                <div class="alert-severity">
+                                    <span class="badge {% if alert.log_entry.severity == 'critical' %}bg-danger{% elif alert.log_entry.severity == 'high' %}bg-warning{% elif alert.log_entry.severity == 'medium' %}bg-info{% else %}bg-secondary{% endif %}">
+                                        {{ alert.log_entry.severity }}
+                                    </span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+                            <h5 class="text-muted">No Active Alerts</h5>
+                            <p class="text-muted">All systems are secure</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions Section -->
+    <div class="row g-4 mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2 text-info"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <a href="{% url 'logs:upload_logs' %}" class="btn btn-outline-primary w-100 h-100 py-3">
+                                <i class="fas fa-upload fa-2x mb-2"></i>
+                                <br>
+                                Upload Logs
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <a href="{% url 'logs:view_alerts' %}" class="btn btn-outline-warning w-100 h-100 py-3">
+                                <i class="fas fa-list fa-2x mb-2"></i>
+                                <br>
+                                View All Alerts
+                            </a>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-info w-100 h-100 py-3" onclick="refreshDashboard()">
+                                <i class="fas fa-sync fa-2x mb-2"></i>
+                                <br>
+                                Refresh Data
+                            </button>
+                        </div>
+                        <div class="col-md-3">
+                            <button class="btn btn-outline-success w-100 h-100 py-3" onclick="exportReport()">
+                                <i class="fas fa-download fa-2x mb-2"></i>
+                                <br>
+                                Export Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Chart data from Django context
+const severityData = {
+    low: {{ severity_data.low|default:0 }},
+    medium: {{ severity_data.medium|default:0 }},
+    high: {{ severity_data.high|default:0 }},
+    critical: {{ severity_data.critical|default:0 }}
+};
+
+let currentChart = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    initializeChart('doughnut');
+    initializeTooltips();
+    setupChartControls();
+    startAutoRefresh();
+});
+
+function initializeChart(type) {
+    const ctx = document.getElementById('severityChart').getContext('2d');
+    
+    if (currentChart) {
+        currentChart.destroy();
+    }
+
+    const chartConfig = {
+        doughnut: {
+            type: 'doughnut',
+            data: {
+                labels: ['Low', 'Medium', 'High', 'Critical'],
+                datasets: [{
+                    data: [severityData.low, severityData.medium, severityData.high, severityData.critical],
+                    backgroundColor: ['#28a745', '#ffc107', '#fd7e14', '#dc3545'],
+                    borderWidth: 2,
+                    borderColor: '#ffffff',
+                    hoverOffset: 15
+                }]
+            },
+            options: getChartOptions('Doughnut Chart')
+        },
+        bar: {
+            type: 'bar',
+            data: {
+                labels: ['Low', 'Medium', 'High', 'Critical'],
+                datasets: [{
+                    data: [severityData.low, severityData.medium, severityData.high, severityData.critical],
+                    backgroundColor: ['#28a745', '#ffc107', '#fd7e14', '#dc3545'],
+                    borderWidth: 0,
+                    borderRadius: 6
+                }]
+            },
+            options: getChartOptions('Bar Chart')
+        }
+    };
+
+    currentChart = new Chart(ctx, chartConfig[type]);
+}
+
+function getChartOptions(title) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom',
+                labels: {
+                    padding: 20,
+                    usePointStyle: true,
+                    pointStyle: 'circle'
+                }
+            },
+            tooltip: {
+                backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                titleFont: { size: 14 },
+                bodyFont: { size: 13 },
+                callbacks: {
+                    label: function(context) {
+                        return `${context.label}: ${context.raw} logs`;
+                    }
+                }
+            }
+        },
+        animation: {
+            duration: 2000,
+            easing: 'easeOutQuart'
+        }
+    };
+}
+
+function setupChartControls() {
+    const buttons = document.querySelectorAll('.chart-controls button');
+    buttons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            buttons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            initializeChart(this.dataset.chartType);
+        });
+    });
+}
+
+function initializeTooltips() {
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+}
+
+function resolveAlert(alertId) {
+    if (confirm('Mark this alert as resolved?')) {
+        fetch(`/alerts/${alertId}/resolve/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                location.reload();
+            }
+        });
+    }
+}
+
+function refreshDashboard() {
+    const refreshBtn = document.querySelector('[onclick="refreshDashboard()"]');
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Refreshing...';
+    
+    setTimeout(() => {
+        location.reload();
+    }, 1000);
+}
+
+function exportReport() {
+    // Simple export functionality - can be enhanced later
+    const dataStr = `Healthcare Log Analysis Report\nGenerated: ${new Date().toLocaleString()}\n\n` +
+                   `Total Logs: ${severityData.low + severityData.medium + severityData.high + severityData.critical}\n` +
+                   `Low Severity: ${severityData.low}\n` +
+                   `Medium Severity: ${severityData.medium}\n` +
+                   `High Severity: ${severityData.high}\n` +
+                   `Critical Severity: ${severityData.critical}`;
+    
+    const dataUri = 'data:text/plain;charset=utf-8,'+ encodeURIComponent(dataStr);
+    const exportFileDefaultName = 'security-report.txt';
+    
+    const linkElement = document.createElement('a');
+    linkElement.setAttribute('href', dataUri);
+    linkElement.setAttribute('download', exportFileDefaultName);
+    linkElement.click();
+}
+
+function startAutoRefresh() {
+    // Auto-refresh every 2 minutes
+    setInterval(() => {
+        const shouldRefresh = confirm('Refresh dashboard data?');
+        if (shouldRefresh) {
+            refreshDashboard();
+        }
+    }, 120000);
+}
+</script>
+
+<style>
+.dashboard-header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 2rem;
+    border-radius: 15px;
+    margin-bottom: 2rem;
+    display: flex;
+    justify-content: between;
+    align-items: center;
+}
+
+.stats-card {
+    border: none;
+    border-radius: 15px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.stats-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+}
+
+.bg-gradient-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.bg-gradient-warning { background: linear-gradient(135deg, #ffc107 0%, #ff6b35 100%); }
+.bg-gradient-danger { background: linear-gradient(135deg, #dc3545 0%, #a71e2c 100%); }
+.bg-gradient-success { background: linear-gradient(135deg, #28a745 0%, #20c997 100%); }
+
+.icon-container {
+    width: 60px;
+    height: 60px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+}
+
+.alert-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.alert-item {
+    padding: 1rem;
+    border-bottom: 1px solid #f0f0f0;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.alert-item:hover {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    transform: translateX(5px);
+}
+
+.alert-item.alert-critical {
+    border-left: 4px solid #dc3545;
+    background: linear-gradient(135deg, #fff5f5 0%, #ffe6e6 100%);
+}
+
+.alert-item.alert-high {
+    border-left: 4px solid #fd7e14;
+    background: linear-gradient(135deg, #fff9f0 0%, #ffeedd 100%);
+}
+
+.alert-item.alert-medium {
+    border-left: 4px solid #ffc107;
+    background: linear-gradient(135deg, #fffdf0 0%, #fff9dd 100%);
+}
+
+.alert-item.alert-low {
+    border-left: 4px solid #6c757d;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+.alert-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+}
+
+.alert-critical .alert-icon { background: #dc3545; color: white; }
+.alert-high .alert-icon { background: #fd7e14; color: white; }
+.alert-medium .alert-icon { background: #ffc107; color: white; }
+.alert-low .alert-icon { background: #6c757d; color: white; }
+
+.alert-content {
+    flex: 1;
+}
+
+.alert-title {
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    color: #2c3e50;
+}
+
+.alert-desc {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    line-height: 1.4;
+}
+
+.alert-time {
+    font-size: 0.8rem;
+    color: #adb5bd;
+}
+
+.alert-severity {
+    margin-left: auto;
+}
+
+.chart-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chart-controls .btn {
+    border-radius: 8px;
+    padding: 0.375rem 0.75rem;
+}
+
+.chart-controls .btn.active {
+    background: #007bff;
+    color: white;
+}
+
+/* Custom scrollbar for alert list */
+.alert-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.alert-list::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 3px;
+}
+
+.alert-list::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 3px;
+}
+
+.alert-list::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+    .dashboard-header {
+        flex-direction: column;
+        text-align: center;
+        gap: 1rem;
+    }
+    
+    .header-actions {
+        width: 100%;
+    }
+    
+    .stats-card .display-4 {
+        font-size: 2.5rem;
+    }
+    
+    .icon-container {
+        width: 50px;
+        height: 50px;
+        font-size: 1.2rem;
+    }
+    
+    .alert-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .alert-severity {
+        margin-left: 0;
+        align-self: flex-start;
+    }
+}
+
+/* Animation for card hover */
+.hover-lift {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hover-lift:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+/* Smooth animations */
+.card {
+    transition: all 0.3s ease;
+}
+
+.card:hover {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* Quick actions buttons */
+.btn-outline-primary, .btn-outline-warning, .btn-outline-info, .btn-outline-success {
+    transition: all 0.3s ease;
+    border-width: 2px;
+    border-radius: 12px;
+}
+
+.btn-outline-primary:hover {
+    background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-outline-warning:hover {
+    background: linear-gradient(135deg, #ffc107 0%, #e0a800 100%);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-outline-info:hover {
+    background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+    color: white;
+    transform: translateY(-2px);
+}
+
+.btn-outline-success:hover {
+    background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+    color: white;
+    transform: translateY(-2px);
+}
+
+/* Loading animation */
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.fa-spinner {
+    animation: spin 1s linear infinite;
+}
+
+/* Pulse animation for critical alerts */
+@keyframes pulse {
+    0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.4); }
+    70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+}
+
+.alert-critical {
+    animation: pulse 2s infinite;
+}
+
+/* Glass morphism effect for cards */
+.stats-card {
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+/* Modern chart styling */
+#severityChart {
+    border-radius: 12px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    padding: 1rem;
+}
+</style>
+{% endblock %}

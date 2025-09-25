@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="upload-container">
+    <!-- Header Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="fas fa-cloud-upload-alt me-2 text-primary"></i>Upload Log Files
+                    </h1>
+                    <p class="text-muted mb-0">Analyze healthcare system logs for security threats</p>
+                </div>
+                <a href="{% url 'logs:dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Upload Form Section -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-upload me-2 text-primary"></i>Upload New Log File
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data" id="uploadForm" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Log Source Selection -->
+                        <div class="mb-4">
+                            <label for="source" class="form-label fw-semibold">
+                                <i class="fas fa-server me-1 text-info"></i>Log Source
+                            </label>	
+                            <select class="form-select form-select-lg" id="source" name="source" required>
+                                <option value="" selected disabled>Select a log source</option>
+                                {% for source in sources %}
+                                <option value="{{ source.id }}" data-type="{{ source.source_type }}">
+                                    {{ source.name }} ({{ source.get_source_type_display }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>Select the system where these logs originated from
+                            </div>
+                        </div>
+
+                        <!-- File Upload -->
+                        <div class="mb-4">
+                            <label for="log_file" class="form-label fw-semibold">
+                                <i class="fas fa-file-lines me-1 text-success"></i>Log File
+                            </label>
+                            <div class="file-upload-area">
+                                <input type="file" class="form-control form-control-lg" id="log_file" name="log_file" 
+                                       accept=".log,.txt,.csv,.json" required 
+                                       onchange="previewFileName(this)">
+                                <div class="file-drop-zone" id="fileDropZone">
+                                    <i class="fas fa-cloud-upload-alt fa-3x text-muted mb-3"></i>
+                                    <p class="mb-1">Drag & drop your log file here</p>
+                                    <p class="text-muted small">or click to browse</p>
+                                </div>
+                                <div class="file-preview mt-2" id="filePreview"></div>
+                            </div>
+                            <div class="form-text">
+                                <i class="fas fa-info-circle me-1"></i>
+                                Supported formats: .log, .txt, .csv, .json • Max 10MB
+                            </div>
+                        </div>
+
+                        <!-- Info Alert -->
+                        <div class="alert alert-info bg-light border-info">
+                            <div class="d-flex">
+                                <i class="fas fa-info-circle fa-2x text-info me-3 mt-1"></i>
+                                <div>
+                                    <h6 class="alert-heading mb-2">How it works</h6>
+                                    <p class="mb-0 small">
+                                        Log files are analyzed using advanced pattern matching rules to detect 
+                                        potential security threats, unauthorized access, and compliance violations 
+                                        in healthcare systems.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Submit Button -->
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg" id="submitBtn">
+                                <i class="fas fa-bolt me-2"></i>
+                                <span class="submit-text">Upload & Analyze</span>
+                                <span class="spinner-border spinner-border-sm ms-2 d-none" id="loadingSpinner"></span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Uploads Section -->
+        <div class="col-lg-4">
+            <div class="card shadow-sm">
+                <div class="card-header bg-transparent border-0">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2 text-warning"></i>Recent Uploads
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_uploads %}
+                    <div class="recent-uploads-list">
+                        {% for upload in recent_uploads %}
+                        <div class="upload-item {% if forloop.first %}upload-item-first{% endif %}">
+                            <div class="upload-icon">
+                                {% if upload.file_type == 'server' %}
+                                <i class="fas fa-server text-primary"></i>
+                                {% elif upload.file_type == 'application' %}
+                                <i class="fas fa-window-restore text-info"></i>
+                                {% elif upload.file_type == 'network' %}
+                                <i class="fas fa-network-wired text-success"></i>
+                                {% else %}
+                                <i class="fas fa-database text-secondary"></i>
+                                {% endif %}
+                            </div>
+                            <div class="upload-details">
+                                <h6 class="upload-filename mb-1">{{ upload.filename|truncatechars:20 }}</h6>
+                                <div class="upload-meta">
+                                    <span class="upload-source">{{ upload.source_name }}</span>
+                                    <span class="upload-time">{{ upload.upload_time|timesince }} ago</span>
+                                </div>
+                                <div class="upload-stats">
+                                    <span class="badge bg-{% if upload.threat_count > 0 %}danger{% else %}success{% endif %}">
+                                        {{ upload.threat_count }} threat{{ upload.threat_count|pluralize }}
+                                    </span>
+                                    <span class="badge bg-secondary">
+                                        {{ upload.line_count }} line{{ upload.line_count|pluralize }}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="upload-status">
+                                {% if upload.status == 'completed' %}
+                                <i class="fas fa-check-circle text-success" title="Analysis completed"></i>
+                                {% elif upload.status == 'processing' %}
+                                <i class="fas fa-spinner fa-spin text-warning" title="Processing"></i>
+                                {% else %}
+                                <i class="fas fa-exclamation-triangle text-danger" title="Failed"></i>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h6 class="text-muted">No recent uploads</h6>
+                        <p class="text-muted small">Upload your first log file to get started</p>
+                    </div>
+                    {% endif %}
+                </div>
+                {% if recent_uploads %}
+                <div class="card-footer bg-transparent border-0 text-center">
+                    <a href="{% url 'logs:view_alerts' %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-list me-1"></i>View All Alerts
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.upload-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.file-upload-area {
+    position: relative;
+    border: 2px dashed var(--border-color);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    transition: all 0.3s ease;
+    background: var(--bg-secondary);
+}
+
+.file-upload-area:hover {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.05);
+}
+
+.file-upload-area.dragover {
+    border-color: var(--primary);
+    background: rgba(102, 126, 234, 0.1);
+    transform: scale(1.02);
+}
+
+#log_file {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    opacity: 0;
+    cursor: pointer;
+}
+
+.file-preview {
+    display: none;
+    padding: 1rem;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.file-preview.show {
+    display: block;
+}
+
+.recent-uploads-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.upload-item {
+    display: flex;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--border-color);
+    transition: all 0.3s ease;
+}
+
+.upload-item:hover {
+    background: var(--bg-secondary);
+}
+
+.upload-item-first {
+    border-top: 1px solid var(--border-color);
+}
+
+.upload-icon {
+    width: 40px;
+    height: 40px;
+    background: var(--bg-secondary);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+    font-size: 1.2rem;
+}
+
+.upload-details {
+    flex: 1;
+}
+
+.upload-filename {
+    font-weight: 600;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.upload-meta {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.upload-source {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.upload-time {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+}
+
+.upload-stats {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.upload-status {
+    margin-left: auto;
+    font-size: 1.1rem;
+}
+
+/* Responsive design */
+@media (max-width: 992px) {
+    .upload-container {
+        padding: 0 1rem;
+    }
+    
+    .upload-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+    
+    .upload-status {
+        margin-left: 0;
+        align-self: flex-start;
+    }
+}
+
+/* Custom scrollbar for uploads list */
+.recent-uploads-list::-webkit-scrollbar {
+    width: 6px;
+}
+
+.recent-uploads-list::-webkit-scrollbar-track {
+    background: var(--bg-secondary);
+    border-radius: 3px;
+}
+
+.recent-uploads-list::-webkit-scrollbar-thumb {
+    background: var(--primary);
+    border-radius: 3px;
+}
+
+.recent-uploads-list::-webkit-scrollbar-thumb:hover {
+    background: var(--primary-dark);
+}
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize file drop zone
+    const fileDropZone = document.getElementById('fileDropZone');
+    const fileInput = document.getElementById('log_file');
+    const filePreview = document.getElementById('filePreview');
+    const form = document.getElementById('uploadForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const loadingSpinner = document.getElementById('loadingSpinner');
+
+    // Drag and drop functionality
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        fileDropZone.addEventListener(eventName, preventDefaults, false);
+    });
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    ['dragenter', 'dragover'].forEach(eventName => {
+        fileDropZone.addEventListener(eventName, highlight, false);
+    });
+
+    ['dragleave', 'drop'].forEach(eventName => {
+        fileDropZone.addEventListener(eventName, unhighlight, false);
+    });
+
+    function highlight() {
+        fileDropZone.classList.add('dragover');
+    }
+
+    function unhighlight() {
+        fileDropZone.classList.remove('dragover');
+    }
+
+    fileDropZone.addEventListener('drop', handleDrop, false);
+
+    function handleDrop(e) {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        fileInput.files = files;
+        previewFileName(fileInput);
+    }
+
+    // Form submission handling
+    form.addEventListener('submit', function(e) {
+        if (form.checkValidity()) {
+            submitBtn.disabled = true;
+            loadingSpinner.classList.remove('d-none');
+            document.querySelector('.submit-text').textContent = 'Analyzing...';
+        } else {
+            e.preventDefault();
+            e.stopPropagation();
+        }
+        form.classList.add('was-validated');
+    });
+
+    // Source selection change
+    const sourceSelect = document.getElementById('source');
+    sourceSelect.addEventListener('change', function() {
+        const selectedOption = this.options[this.selectedIndex];
+        const sourceType = selectedOption.dataset.type;
+        // You can add source-type specific logic here
+    });
+});
+
+function previewFileName(input) {
+    const filePreview = document.getElementById('filePreview');
+    if (input.files.length > 0) {
+        const file = input.files[0];
+        const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+        const fileType = file.name.split('.').pop().toUpperCase();
+        
+        filePreview.innerHTML = `
+            <div class="d-flex align-items-center">
+                <i class="fas fa-file-text fa-2x text-primary me-3"></i>
+                <div>
+                    <h6 class="mb-1">${file.name}</h6>
+                    <p class="text-muted small mb-0">${fileType} file • ${fileSize} MB</p>
+                </div>
+            </div>
+        `;
+        filePreview.classList.add('show');
+    } else {
+        filePreview.classList.remove('show');
+        filePreview.innerHTML = '';
+    }
+}
+
+// Add click event to file drop zone for better UX
+document.getElementById('fileDropZone').addEventListener('click', function() {
+    document.getElementById('log_file').click();
+});
+</script>
+{% endblock %}

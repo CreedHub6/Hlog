@@ -1,0 +1,3 @@
+2023-09-06 09:15:30 - INFO - User dr_jones accessed patient record #P-12345 (John Doe)
+2023-09-06 09:18:22 - INFO - User nurse_sarah viewed medical history for patient #P-67890
+2023-09-06 09:21:45 - WARNING - Bulk data export initiated by user admin - 500 records
